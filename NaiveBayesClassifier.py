@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-def add_to_dctnry(self, wrd, dctnry):
+def add_to_dctnry(wrd, dctnry):
         if wrd in dctnry:
             dctnry[wrd] += 1
         else:
@@ -21,14 +21,21 @@ def add_to_dctnry(self, wrd, dctnry):
 class Review:
     sentiment = '0'
     text = []
+    dctnry = {}
+    nwords = 0
     posprob = 0
     negprob = 0
 
-    def __init__(self, sentiment, text):
+    def __init__(self, classifier, sentiment, text):
         self.sentiment = sentiment
-        self.text = text
         self.posprob = 0
         self.negprob = 0
+        self.nwords = 0
+        self.text = text.lower().split()
+        for word in self.text:
+            if not classifier.invalid_word(word):
+                self.nwords += 1
+                self.dctnry = add_to_dctnry(word, self.dctnry)
 
 
 class Classifier:
@@ -38,33 +45,30 @@ class Classifier:
     numposwords = 0
     numnegwords = 0
     stopwords = []
-    trainingdata = []
-    testingdata = []
-    trainingacc = 0
-    testingacc = 0
+    traindata = []
+    testdata = []
+    trainacc = 0
+    testacc = 0
 
     def __init__(self, training, testing):
         self.stopwords = self.load_stop_words()
-        self.trainingdata = self.load_file(training)
-        self.testingdata = self.load_file(testing)
+        self.traindata = self.load_file(training)
+        self.testdata = self.load_file(testing)
 
     def load_file(self, filename):
-        file = open(filename, "rb")
-
+        file = open(filename, 'r')
         data = []
-        trans = string.maketrans("", "")
+        trans = string.maketrans('', '')
         for line in file:
-            review = line[1:].translate(trans, string.punctuation)
-            review = review.lower().split()
-            review = [word for word in review if not self.invalid_word(word)]
-            data.append(Review(line[0], review))
-
+            text = line[1:].translate(trans, string.punctuation)
+            review = Review(self, line[0], text)
+            data.append(review)
         # print "time :",timeit.Timer('f(s)', 'from __main__ import s,loadTrainingFile as f').timeit(1000000)
         return data
 
     # load stop words from file into list
     def load_stop_words(self):
-        return open("stopWords.txt", "rb").read().split()
+        return open('stopWords.txt', 'r').read().split()
 
     # check if word is too long, contains digits or is in the list of stop words
     def invalid_word(self, word):
@@ -73,45 +77,44 @@ class Classifier:
         stopword = word in self.stopwords
         return toolong or hasdigit or stopword
 
-
     def train_classifier(self):
-        for review in self.trainingdata:
-            for word in review.text:
+        for review in self.traindata:
+            for word in review.dctnry:
                 if review.sentiment == '1':
-                    self.numposwords += 1
-                    self.posdctnry = add_to_dctnry(word, self.posdctnry)
+                    self.numposwords += 1   # review.dctnry[word] ?
+                    self.posdctnry[word] = review.dctnry[word] / review.nwords
                 else:
-                    self.numnegwords += 1
-                    self.negdctnry = add_to_dctnry(word, self.negdctnry)
+                    self.numnegwords += 1   # review.dctnry[word] ?
+                    self.negdctnry[word] = review.dctnry[word] / review.nwords
         return
 
     def test_data(self):
         totalwords = self.numnegwords + self.numposwords
-        ppositive = math.log(1 + self.numposwords / totalwords)
-        pnegative = math.log(1 + self.numnegwords / totalwords)
+        probposword = math.log(1 + self.numposwords / totalwords)
+        probnegword = math.log(1 + self.numnegwords / totalwords)
 
-        for review in self.trainingdata:
-            review.posprob = ppositive
-            review.negprob = pnegative
-            for word in review.text:
+        for review in self.traindata:
+            review.posprob = probposword
+            review.negprob = probnegword
+            for word in review.dctnry:
                 if word in self.posdctnry:
-                    review.posprob += math.log(1 + self.poswords[word] / self.numposwords)
+                    review.posprob += math.log(1 + self.posdctnry[word]) * review.dctnry[word]
                 elif word in self.negdctnry:
-                    review.negprob += math.log(1 + self.negwords[word] / self.numnegwords)
+                    review.negprob += math.log(1 + self.negdctnry[word]) * review.dctnry[word]
             # logger.debug('posprob train : %f', review.posprob)
             # logger.debug('negprob train : %f', review.negprob)
             if review.posprob > review.negprob and review.sentiment == '1':
-                self.trainingacc += 1
+                self.trainacc += 1
             elif review.posprob < review.negprob and review.sentiment == '0':
-                self.trainingacc += 1
-        self.trainingacc /= len(self.trainingdata)
-        logger.debug('ppositive : %f', ppositive)
-        logger.debug('pnegative : %f', pnegative)
-        logger.debug('training accuracy : %f', self.trainingacc)
+                self.trainacc += 1
+        self.trainacc /= len(self.traindata)
+        logger.debug('probposword : %f', probposword)
+        logger.debug('probnegword : %f', probnegword)
+        logger.debug('training accuracy : %f', self.trainacc)
 
-        for review in self.testingdata:
-            review.posprob = ppositive
-            review.negprob = pnegative
+        for review in self.testdata:
+            review.posprob = probposword
+            review.negprob = probnegword
             for word in review.text:
                 if word in self.posdctnry:
                     # logger.debug('positive word[freq] : %s[%d]', word, self.poswords[word])
@@ -122,24 +125,24 @@ class Classifier:
                     review.negprob += math.log(1 + self.negdctnry[word] / self.numnegwords)
             logger.debug('posprob test : %f', review.posprob)
             logger.debug('negprob test : %f', review.negprob)
-            logger.debug('numposwords  : %d', self.numposwords)
-            logger.debug('numnegwords  : %d', self.numnegwords)
             if review.posprob > review.negprob and review.sentiment == '1':
-                self.testingacc += 1
+                self.testacc += 1
             elif review.posprob < review.negprob and review.sentiment == '0':
-                self.testingacc += 1
-        self.testingacc /= len(self.testingdata)
-        logger.debug("testing accuracy : %f", self.testingacc)
+                self.testacc += 1
+        self.testacc /= len(self.testdata)
+        logger.debug('numposwords  : %d', self.numposwords)
+        logger.debug('numnegwords  : %d', self.numnegwords)
+        logger.debug('testing accuracy : %f', self.testacc)
 
         return
 
     def print_dicts(self):
-        logger.debug("positive words : ")
+        logger.debug('positive words : ')
         for word, freq in self.posdctnry.items():
             logger.debug("%s : %d", word, freq)
-        logger.debug("negative words : ")
+        logger.debug('negative words : ')
         for word, freq in self.negdctnry.items():
-            logger.debug("%s : %d", word, freq)
+            logger.debug('%s : %d', word, freq)
         return
 
 
