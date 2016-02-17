@@ -34,8 +34,14 @@ class Review:
         self.posprob = 0
         self.negprob = 0
         for word in self.text:
+            word = self.stem_word(word)
             self.dctnry = add_to_dctnry(word, self.dctnry)
 
+    # def stem_review(self, review):
+    #     for word in review:
+    #         if word[-1] == 's':
+    #             word = word[:-4] if word[-4:] == 'sses' else word
+    #
 
 class Classifier:
     digit = re.compile('\d')
@@ -69,11 +75,6 @@ class Classifier:
 
         # print "time :",timeit.Timer('f(s)', 'from __main__ import s,loadTrainingFile as f').timeit(1000000)
         return data
-
-    # def stem_review(self, review):
-    #     for word in review:
-    #         if word[-1] == 's':
-    #
 
     # load stop words from file into list
     def load_stop_words(self):
@@ -161,4 +162,5 @@ if __name__ == '__main__':
     NaiveBayes = Classifier(sys.argv[1], sys.argv[2])
     NaiveBayes.train_classifier()
     # NaiveBayes.print_dicts()
-    NaiveBayes.test_data()
+    # NaiveBayes.test_data()
+
