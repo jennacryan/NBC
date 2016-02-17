@@ -10,6 +10,14 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+def add_to_dctnry(wrd, dctnry):
+    if wrd in dctnry:
+        dctnry[wrd] += 1
+    else:
+        dctnry[wrd] = 1
+    return dctnry
+
+
 class Review:
     sentiment = '0'
     text = []
@@ -18,18 +26,15 @@ class Review:
     posprob = 0
     negprob = 0
 
-    def __init__(self, sentiment, text, length):
+    def __init__(self, sentiment, text):
         self.sentiment = sentiment
         self.text = text
         self.dctnry = {}
-        self.nwords = length
+        self.nwords = len(self.text)
         self.posprob = 0
         self.negprob = 0
         for word in self.text:
-            if word in self.dctnry:
-                self.dctnry[word] += 1
-            else:
-                self.dctnry[word] = 1
+            self.dctnry = add_to_dctnry(word, self.dctnry)
 
 
 class Classifier:
@@ -60,11 +65,15 @@ class Classifier:
             review = line[1:].translate(trans, string.punctuation)
             review = review.lower().split()
             review = [word for word in review if not self.invalid_word(word)]
-            length = len(review)
-            data.append(Review(line[0], review, length))
+            data.append(Review(line[0], review))
 
         # print "time :",timeit.Timer('f(s)', 'from __main__ import s,loadTrainingFile as f').timeit(1000000)
         return data
+
+    # def stem_review(self, review):
+    #     for word in review:
+    #         if word[-1] == 's':
+    #
 
     # load stop words from file into list
     def load_stop_words(self):
@@ -90,17 +99,16 @@ class Classifier:
                     if review.sentiment == '1':
                         self.nposwords += 1
                         self.posTF[word] = review.dctnry[word] / review.nwords
-                        if word in self.posIDF:
-                            self.posIDF[word] += 1
-                        else:
-                            self.posIDF[word] = 1
                     else:
                         self.nnegwords += 1
                         self.negTF[word] = review.dctnry[word] / review.nwords
-                        if word in self.negIDF:
-                            self.negIDF[word] += 1
-                        else:
-                            self.negIDF[word] = 1
+
+            for word in dlist:
+                if review.sentiment == '1':
+                    self.posIDF = add_to_dctnry(word, self.posIDF)
+                else:
+                    self.negIDF = add_to_dctnry(word, self.negIDF)
+            # logger.debug('n dlist : %d', len(dlist))
         return
 
     def test_data(self):
@@ -138,16 +146,19 @@ class Classifier:
         return acc / len(data)
 
     def print_dicts(self):
-        logger.debug("positive IDF : ")
-        for word, freq in self.posIDF.items():
+        logger.debug("positive TF : ")
+        for word, freq in self.posTF.items():
             logger.debug("%s : %f", word, freq)
-        logger.debug("negative IDF : ")
-        for word, freq in self.negIDF.items():
+        logger.debug("negative TF : ")
+        for word, freq in self.negTF.items():
             logger.debug("%s : %f", word, freq)
+
+        logger.debug('nposIDF : %d', len(self.posIDF))
+        logger.debug('nnegIDF : %d', len(self.negIDF))
         return
 
-
-NaiveBayes = Classifier(sys.argv[1], sys.argv[2])
-NaiveBayes.train_classifier()
-# NaiveBayes.print_dicts()
-NaiveBayes.test_data()
+if __name__ == '__main__':
+    NaiveBayes = Classifier(sys.argv[1], sys.argv[2])
+    NaiveBayes.train_classifier()
+    # NaiveBayes.print_dicts()
+    NaiveBayes.test_data()
