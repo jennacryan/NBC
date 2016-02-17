@@ -35,7 +35,11 @@ class Review:
         for word in self.text:
             if not classifier.invalid_word(word):
                 self.nwords += 1
-                self.dctnry = add_to_dctnry(word, self.dctnry)
+                # self.dctnry = add_to_dctnry(word, self.dctnry)
+                if word in self.dctnry:
+                    self.dctnry[word] += 1
+                else:
+                    self.dctnry[word] = 1
 
 
 class Classifier:
@@ -83,6 +87,7 @@ class Classifier:
                 if review.sentiment == '1':
                     self.numposwords += 1   # review.dctnry[word] ?
                     self.posdctnry[word] = review.dctnry[word] / review.nwords
+                    # logger.debug('self.posdctnry[%s] = %f', word, self.posdctnry[word])
                 else:
                     self.numnegwords += 1   # review.dctnry[word] ?
                     self.negdctnry[word] = review.dctnry[word] / review.nwords
@@ -92,15 +97,17 @@ class Classifier:
         totalwords = self.numnegwords + self.numposwords
         probposword = math.log(1 + self.numposwords / totalwords)
         probnegword = math.log(1 + self.numnegwords / totalwords)
+        logger.debug('probposword : %f', probposword)
+        logger.debug('probnegword : %f', probnegword)
 
         for review in self.traindata:
             review.posprob = probposword
             review.negprob = probnegword
             for word in review.dctnry:
                 if word in self.posdctnry:
-                    review.posprob += math.log(1 + self.posdctnry[word]) * review.dctnry[word]
+                    review.posprob += math.log(1 + self.posdctnry[word])
                 elif word in self.negdctnry:
-                    review.negprob += math.log(1 + self.negdctnry[word]) * review.dctnry[word]
+                    review.negprob += math.log(1 + self.negdctnry[word])
             # logger.debug('posprob train : %f', review.posprob)
             # logger.debug('negprob train : %f', review.negprob)
             if review.posprob > review.negprob and review.sentiment == '1':
@@ -108,8 +115,6 @@ class Classifier:
             elif review.posprob < review.negprob and review.sentiment == '0':
                 self.trainacc += 1
         self.trainacc /= len(self.traindata)
-        logger.debug('probposword : %f', probposword)
-        logger.debug('probnegword : %f', probnegword)
         logger.debug('training accuracy : %f', self.trainacc)
 
         for review in self.testdata:
@@ -136,17 +141,17 @@ class Classifier:
 
         return
 
-    def print_dicts(self):
-        logger.debug('positive words : ')
+    def print_debug(self):
+        logger.debug('positive words : %d', self.numposwords)
         for word, freq in self.posdctnry.items():
-            logger.debug("%s : %d", word, freq)
-        logger.debug('negative words : ')
+            logger.debug("%s : %f", word, freq)
+        logger.debug('negative words : %d', self.numnegwords)
         for word, freq in self.negdctnry.items():
-            logger.debug('%s : %d', word, freq)
+            logger.debug('%s : %f', word, freq)
         return
 
 
 NaiveBayes = Classifier(sys.argv[1], sys.argv[2])
 NaiveBayes.train_classifier()
-# NaiveBayes.print_dicts()
-NaiveBayes.test_data()
+NaiveBayes.print_debug()
+# NaiveBayes.test_data()
