@@ -37,11 +37,34 @@ class Review:
             word = self.stem_word(word)
             self.dctnry = add_to_dctnry(word, self.dctnry)
 
-    # def stem_review(self, review):
-    #     for word in review:
-    #         if word[-1] == 's':
-    #             word = word[:-4] if word[-4:] == 'sses' else word
-    #
+    def stem_word(self, word):
+        if word[-1] == 's':
+            if word[-4:] == 'sses':
+                word = word[:-2]
+            elif word[-3:] == 'ies':
+                word = word[:-2]
+            elif word[len(word) - 2] != 's':
+                word = word[:-1]
+        if word[-3:] == 'eed':
+            if len(word[:-3]) > 1:
+                word = word[:-1]
+        elif sum(letter in 'aeiou' for letter in word[:-3]) > 0 and (word[-2:] == 'ed' or word[-3:] == 'ing'):
+            if word[-2:] == 'ed':
+                word = word[:-2]
+            elif word[-3:] == 'ing':
+                word = word[:-3]
+            if word[-2:] == 'at' or word[-2:] == 'bl' or word[-2:] == 'iz':
+                word += 'e'
+            elif word[-1] == word[-2] and word[-1] != 'l' and word[-1] != 's' and word[-1] != 'z':
+                word = word[:-1]
+            elif len(word) > 2 and word[-1] != 'w' and word[-1] != 'x' and word[-1] != 'y':
+                # check for a consonant
+                if sum(letter in 'bcdfghjklmnpqrstvwxyz' for letter in word[-3:]) > 0:
+                    # check for a vowel
+                    if sum(letter in 'aeiou' for letter in word[-3:]) > 0:
+                        word += 'e'
+        return word
+
 
 class Classifier:
     digit = re.compile('\d')
@@ -54,8 +77,8 @@ class Classifier:
     nposdocs = 0
     nnegdocs = 0
     stopwords = []
-    trainingdata = []
-    testingdata = []
+    traindata = []
+    testdata = []
 
     def __init__(self, training, testing):
         self.stopwords = self.load_stop_words()
@@ -85,7 +108,7 @@ class Classifier:
         return toolong or hasdigit or stopword
 
     def train_classifier(self):
-        for review in self.trainingdata:
+        for review in self.traindata:
             dlist = []
             if review.sentiment == '1':
                 self.nposdocs += 1
@@ -110,8 +133,8 @@ class Classifier:
         return
 
     def test_data(self):
-        trainingacc = self.test_accuracy(self.trainingdata)
-        testingacc = self.test_accuracy(self.testingdata)
+        trainingacc = self.test_accuracy(self.traindata)
+        testingacc = self.test_accuracy(self.testdata)
 
         print 'training accuracy : ' + str(trainingacc)
         print 'testing accuracy : ' + str(testingacc)
@@ -159,5 +182,5 @@ if __name__ == '__main__':
     NaiveBayes = Classifier(sys.argv[1], sys.argv[2])
     NaiveBayes.train_classifier()
     # NaiveBayes.print_dicts()
-    # NaiveBayes.test_data()
+    NaiveBayes.test_data()
 
