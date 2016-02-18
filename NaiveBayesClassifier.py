@@ -106,9 +106,9 @@ class Classifier:
     def invalid_word(self, word):
         toolong = len(word) > 20
         hasdigit = self.digit.search(word) is not None
-        # stopword = word in self.stopwords
-        # return toolong or hasdigit or stopword
-        return toolong or hasdigit
+        stopword = word in self.stopwords
+        return toolong or hasdigit or stopword
+        # return toolong or hasdigit
 
     def train_classifier(self):
         for review in self.trainingdata:
@@ -142,9 +142,15 @@ class Classifier:
         return
 
     def test_data(self):
+        # logger.debug('testing training :')
         trainingacc = self.test_accuracy(self.trainingdata)
+        # logger.debug('testing testing  :')
         testingacc = self.test_accuracy(self.testingdata)
 
+        # logger.debug('nposwords    : %f', self.nposwords)
+        # logger.debug('nnegwords    : %f', self.nnegwords)
+        # logger.debug('nposdocs     : %f', self.nposdocs)
+        # logger.debug('nnegdocs     : %f', self.nnegdocs)
         print 'training accuracy : ' + str(trainingacc)
         print 'testing accuracy  : ' + str(testingacc)
 
@@ -156,6 +162,9 @@ class Classifier:
         probposword = math.log(1 + self.nposwords / totalwords)
         probnegword = math.log(1 + self.nnegwords / totalwords)
 
+        # logger.debug('probposword  : %f', probposword)
+        # logger.debug('probnegword  : %f', probnegword)
+
         for review in data:
             posprob = probposword
             negprob = probnegword
@@ -165,17 +174,29 @@ class Classifier:
                     dlist.append(word)
                     if word in self.posTF:
                         posprob += math.log(1 + self.posTF[word]) * (1 + math.log(self.nposdocs / self.posIDF[word]))
-                        logger.debug('%s posIDF : %f', word, self.nposdocs / self.posIDF[word])
-                    elif word in self.negTF:
+                        # logger.debug('%s posprob += %f = %f', word, math.log(1 + self.posTF[word]) * (1 + math.log(self.nposdocs / self.posIDF[word])), posprob)
+                    if word in self.negTF:
                         negprob += math.log(1 + self.negTF[word]) * (1 + math.log(self.nnegdocs / self.negIDF[word]))
-                        logger.debug('%s negIDF : %f', word, self.nnegdocs / self.negIDF[word])
+                        # logger.debug('%s negprob += %f = %f', word, math.log(1 + self.negTF[word]) * (1 + math.log(self.nnegdocs / self.negIDF[word])), negprob)
+                        # logger.debug('%s negIDF : %f', word, self.nnegdocs / self.negIDF[word])
             # logger.debug('posprob test : %f', posprob)
             # logger.debug('negprob test : %f', negprob)
             if posprob > negprob and review.sentiment == '1':
                 acc += 1
+                # logger.debug('pred sentiment : 1, acc = %d / %d', acc, len(data))
             elif posprob < negprob and review.sentiment == '0':
                 acc += 1
-        return acc / len(data)
+                # logger.debug('pred sentiment : 0, acc = %d / %d', acc, len(data))
+            # else:
+                # logger.debug('predicted WRONG, acc = %d', acc)
+            # logger.debug('real sentiment : %s', review.sentiment)
+            # logger.debug(' ')
+        # accp = acc
+        acc /= len(data)
+        # logger.debug('final accuracy = %d / %d = %f', accp, len(data), acc)
+        # logger.debug(' ')
+
+        return acc
 
     def print_dicts(self):
         logger.debug("positive IDF : ")
