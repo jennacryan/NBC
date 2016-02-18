@@ -4,7 +4,7 @@ import string
 import sys
 import math
 import re
-import timeit
+import time
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -78,6 +78,8 @@ class Classifier:
     stopwords = []
     trainingdata = []
     testingdata = []
+    tstrt = 0
+    tend = 0
 
     def __init__(self, training, testing):
         self.stopwords = self.load_stop_words()
@@ -95,7 +97,6 @@ class Classifier:
             review = [word for word in review if not self.invalid_word(word)]
             data.append(Review(line[0], review))
 
-        # print "time :",timeit.Timer('f(s)', 'from __main__ import s,loadTrainingFile as f').timeit(1000000)
         return data
 
     # load stop words from file into list
@@ -108,7 +109,6 @@ class Classifier:
         hasdigit = self.digit.search(word) is not None
         stopword = word in self.stopwords
         return toolong or hasdigit or stopword
-        # return toolong or hasdigit
 
     def train_classifier(self):
         for review in self.trainingdata:
@@ -138,32 +138,33 @@ class Classifier:
                     self.posIDF = add_to_dctnry(word, self.posIDF)
                 else:
                     self.negIDF = add_to_dctnry(word, self.negIDF)
-            # logger.debug('n dlist : %d', len(dlist))
         return
 
     def test_data(self):
-        # logger.debug('testing training :')
         trainingacc = self.test_accuracy(self.trainingdata)
-        # logger.debug('testing testing  :')
+        trainingtime = self.tend - self.tstrt
         testingacc = self.test_accuracy(self.testingdata)
+        testingtime = self.tend - self.tstrt
 
-        # logger.debug('nposwords    : %f', self.nposwords)
-        # logger.debug('nnegwords    : %f', self.nnegwords)
-        # logger.debug('nposdocs     : %f', self.nposdocs)
-        # logger.debug('nnegdocs     : %f', self.nnegdocs)
-        print 'training accuracy : ' + str(trainingacc)
-        print 'testing accuracy  : ' + str(testingacc)
+        # print 'training accuracy : ' + str(trainingacc) + ' seconds (training)'
+        # print 'testing accuracy  : ' + str(testingacc) + ' seconds (testing)'
+        # print 'training time     : ' + str(trainingtime) + ' (training)'
+        # print 'testing time      : ' + str(testingtime) + ' (testing)'
+        # print 'total time        : ' + str(testingtime + trainingtime)
+
+        print '%d' % trainingtime + ' seconds (training)'
+        print '%d' % testingtime + ' seconds (labeling)'
+        print str(trainingacc) + ' (training)'
+        print str(testingacc) + ' (testing)'
 
         return
 
     def test_accuracy(self, data):
+        self.tstrt = time.time()
         acc = 0
         totalwords = self.nnegwords + self.nposwords
         probposword = math.log(1 + self.nposwords / totalwords)
         probnegword = math.log(1 + self.nnegwords / totalwords)
-
-        # logger.debug('probposword  : %f', probposword)
-        # logger.debug('probnegword  : %f', probnegword)
 
         for review in data:
             posprob = probposword
@@ -174,28 +175,16 @@ class Classifier:
                     dlist.append(word)
                     if word in self.posTF:
                         posprob += math.log(1 + self.posTF[word]) * (1 + math.log(self.nposdocs / self.posIDF[word]))
-                        # logger.debug('%s posprob += %f = %f', word, math.log(1 + self.posTF[word]) * (1 + math.log(self.nposdocs / self.posIDF[word])), posprob)
                     if word in self.negTF:
                         negprob += math.log(1 + self.negTF[word]) * (1 + math.log(self.nnegdocs / self.negIDF[word]))
-                        # logger.debug('%s negprob += %f = %f', word, math.log(1 + self.negTF[word]) * (1 + math.log(self.nnegdocs / self.negIDF[word])), negprob)
-                        # logger.debug('%s negIDF : %f', word, self.nnegdocs / self.negIDF[word])
-            # logger.debug('posprob test : %f', posprob)
-            # logger.debug('negprob test : %f', negprob)
             if posprob > negprob and review.sentiment == '1':
+                print '1'
                 acc += 1
-                # logger.debug('pred sentiment : 1, acc = %d / %d', acc, len(data))
             elif posprob < negprob and review.sentiment == '0':
+                print '0'
                 acc += 1
-                # logger.debug('pred sentiment : 0, acc = %d / %d', acc, len(data))
-            # else:
-                # logger.debug('predicted WRONG, acc = %d', acc)
-            # logger.debug('real sentiment : %s', review.sentiment)
-            # logger.debug(' ')
-        # accp = acc
         acc /= len(data)
-        # logger.debug('final accuracy = %d / %d = %f', accp, len(data), acc)
-        # logger.debug(' ')
-
+        self.tend = time.time()
         return acc
 
     def print_dicts(self):
@@ -215,6 +204,5 @@ class Classifier:
 if __name__ == '__main__':
     NaiveBayes = Classifier(sys.argv[1], sys.argv[2])
     NaiveBayes.train_classifier()
-    # NaiveBayes.print_dicts()
     NaiveBayes.test_data()
 
