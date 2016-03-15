@@ -141,9 +141,9 @@ class Classifier:
         return
 
     def test_data(self):
-        trainingacc = self.test_accuracy(self.trainingdata)
+        trainingacc = self.test_accuracy(self.trainingdata, 'train')
         trainingtime = self.tend - self.tstrt
-        testingacc = self.test_accuracy(self.testingdata)
+        testingacc = self.test_accuracy(self.testingdata, 'test')
         testingtime = self.tend - self.tstrt
 
         # print 'training accuracy : ' + str(trainingacc) + ' seconds (training)'
@@ -159,7 +159,7 @@ class Classifier:
 
         return
 
-    def test_accuracy(self, data):
+    def test_accuracy(self, data, type):
         self.tstrt = time.time()
         acc = 0
         totalwords = self.nnegwords + self.nposwords
@@ -177,12 +177,16 @@ class Classifier:
                         posprob += math.log(1 + self.posTF[word]) * (1 + math.log(self.nposdocs / self.posIDF[word]))
                     if word in self.negTF:
                         negprob += math.log(1 + self.negTF[word]) * (1 + math.log(self.nnegdocs / self.negIDF[word]))
-            if posprob > negprob and review.sentiment == '1':
-                print '1'
-                acc += 1
-            elif posprob < negprob and review.sentiment == '0':
-                print '0'
-                acc += 1
+            if posprob > negprob:
+                if type == 'test':
+                    print '1'
+                if review.sentiment == '1':
+                    acc += 1
+            elif posprob < negprob:
+                if type == 'test':
+                    print '0'
+                if review.sentiment == '0':
+                    acc += 1
         acc /= len(data)
         self.tend = time.time()
         return acc
