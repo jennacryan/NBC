@@ -1,2 +1,2 @@
 # NBC
-Naive Bayes Classifier to categorize product reviews as positive or negative
+Naive Bayes Classifier for binary classification of product reviews ( positive / negative )
